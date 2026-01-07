@@ -1,0 +1,101 @@
+############################
+# 🐍 PYTHON / DJANGO
+############################
+
+# Virtual environments
+backend/venv/
+venv/
+.env
+backend/.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+
+# Logs
+*.log
+
+############################
+# ⚛️ REACT / VITE / NODE
+############################
+
+# Node modules
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+frontend/build/
+
+# Vite cache
+frontend/.vite/
+
+# NPM / Yarn / PNPM logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
+
+############################
+# 🧪 TESTING / COVERAGE
+############################
+
+coverage/
+htmlcov/
+.pytest_cache/
+
+############################
+# 🖥️ OS FILES
+############################
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+############################
+# 🧠 IDE / EDITORS
+############################
+
+# VS Code
+.vscode/
+
+# PyCharm / IntelliJ
+.idea/
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+############################
+# 🐳 DOCKER (Future-proof)
+############################
+
+docker-compose.override.yml
+
+############################
+# 🔐 SECURITY
+############################
+
+*.pem
+*.key
+
+############################
+# 📦 MISC
+############################
+
+*.swp
+*.tmp
