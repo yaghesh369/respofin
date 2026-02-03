@@ -140,3 +140,13 @@ class CustomerBulkUploadView(APIView):
 
         return Response({"created": created, "skipped": skipped, "errors": errors}, status=status.HTTP_201_CREATED)
 
+
+class CustomerDeleteAllView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        deleted_count, _ = Customer.objects.filter(owner=request.user).delete()
+        return Response(
+            {"deleted": deleted_count},
+            status=status.HTTP_200_OK
+        )

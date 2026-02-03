@@ -10,12 +10,12 @@ urlpatterns = [
 
 # already registered
 #     {
-#   "username": "test1",
-#   "email": "test1@gmail.com",
+#   "username": "test2",
+#   "email": "test2@gmail.com",
 #   "password": "testPass123"
 # }
 # for login 
 # {
-#   "username": "test1",
+#   "username": "test2",
 #   "password": "testPass123"
 # }
