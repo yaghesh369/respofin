@@ -8,4 +8,6 @@ urlpatterns = [
     path("api/segmentation/", include("segmentation.urls")),
     path("api/recommendations/", include("recommendations.urls")),
     path("api/notifications/", include("notifications.urls")),
+    path("api/analytics/", include("analytics.urls")),
+
 ]
