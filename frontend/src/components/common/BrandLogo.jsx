@@ -16,7 +16,7 @@ const scaleStyles = {
   },
 }
 
-export default function BrandLogo({ className = '', compact = false, onClick, scale = 'md', subtitle = 'Revenue orchestration', title = 'Respofin', to = '/' }) {
+export default function BrandLogo({ className = '', compact = false, onClick, scale = 'md', subtitle = 'Revenue hub', title = 'Respofin', to = '/' }) {
   const visual = scaleStyles[scale] ?? scaleStyles.md
 
   return (

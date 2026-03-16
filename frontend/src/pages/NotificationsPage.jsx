@@ -24,6 +24,25 @@ import { useToast } from '../hooks/useToast.js'
 import { extractApiError } from '../lib/errors.js'
 import { formatDateTime } from '../lib/formatters.js'
 
+const SEND_ALL_BATCH_SIZE = 15
+const PROVIDER_LIMIT_MARKERS = [
+  'daily user sending limit exceeded',
+  'sending limit exceeded',
+  'quota exceeded',
+  '5.4.5',
+]
+const QUERY_KEYS_TO_REFRESH = [
+  ['notifications-drafts'],
+  ['notifications-sent'],
+  ['analytics'],
+  ['recommendations'],
+]
+
+function isProviderLimitError(errorMessage) {
+  const value = String(errorMessage || '').toLowerCase()
+  return PROVIDER_LIMIT_MARKERS.some((marker) => value.includes(marker))
+}
+
 export default function NotificationsPage() {
   const queryClient = useQueryClient()
   const notify = useToast()
@@ -38,15 +57,28 @@ export default function NotificationsPage() {
   const [sentMessage, setSentMessage] = useState('')
   const [draftSearch, setDraftSearch] = useState('')
   const [sentSearch, setSentSearch] = useState('')
+  const [bulkSendProgress, setBulkSendProgress] = useState({ processed: 0, total: 0 })
 
   const draftsQuery = useQuery({
     queryFn: listDraftNotifications,
     queryKey: ['notifications-drafts'],
+    staleTime: 0,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   })
 
   const sentQuery = useQuery({
     queryFn: listSentNotifications,
     queryKey: ['notifications-sent'],
+    staleTime: 0,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   })
 
   const recommendationsQuery = useQuery({
@@ -92,26 +124,148 @@ export default function NotificationsPage() {
   const visibleSelectedIds = selectedIds.filter((id) => filteredDrafts.some((draft) => draft.id === id))
   const allSelected = filteredDrafts.length > 0 && visibleSelectedIds.length === filteredDrafts.length
 
+  const providerLimitDrafts = useMemo(
+    () => drafts.filter((draft) => isProviderLimitError(draft.error_message)),
+    [drafts],
+  )
+  const providerLimitCount = providerLimitDrafts.length
+
+  async function refreshNotificationSurfaces() {
+    await Promise.all(
+      QUERY_KEYS_TO_REFRESH.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    )
+
+    await Promise.all(
+      QUERY_KEYS_TO_REFRESH.map((queryKey) => queryClient.refetchQueries({ queryKey, type: 'all' })),
+    )
+  }
+
+  async function sendDraftsInBatches(notificationIds) {
+    const uniqueIds = Array.from(new Set(notificationIds || []))
+    setBulkSendProgress({ processed: 0, total: uniqueIds.length })
+
+    if (uniqueIds.length === 0) {
+      return {
+        failed: 0,
+        requested: 0,
+        sent: 0,
+        skipped: 0,
+        stopMessage: '',
+        stopReason: null,
+        stoppedEarly: false,
+        total: 0,
+      }
+    }
+
+    let sent = 0
+    let failed = 0
+    let total = 0
+    let stoppedEarly = false
+    let stopReason = null
+    let stopMessage = ''
+
+    for (let index = 0; index < uniqueIds.length; index += SEND_ALL_BATCH_SIZE) {
+      const batchIds = uniqueIds.slice(index, index + SEND_ALL_BATCH_SIZE)
+      const result = await sendAllDraftNotifications(batchIds)
+
+      const batchTotal = Number(result.total || 0)
+      const batchSent = Number(result.sent || 0)
+      const batchFailed = Number(result.failed || 0)
+      const batchStopReason = result.stop_reason || null
+      const batchStopMessage = result.stop_message || ''
+
+      total += batchTotal
+      sent += batchSent
+      failed += batchFailed
+
+      setBulkSendProgress({
+        processed: Math.min(index + batchIds.length, uniqueIds.length),
+        total: uniqueIds.length,
+      })
+
+      // Keep data fresh while the bulk send is running.
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['notifications-drafts'], type: 'all' }),
+        queryClient.refetchQueries({ queryKey: ['notifications-sent'], type: 'all' }),
+        queryClient.refetchQueries({ queryKey: ['analytics'], type: 'all' }),
+      ])
+
+      if (batchStopReason) {
+        stoppedEarly = true
+        stopReason = batchStopReason
+        stopMessage = batchStopMessage
+        break
+      }
+
+      // If the provider starts rejecting every mail in a batch, stop early
+      // so the UI does not stay busy for many more failing batches.
+      if (batchTotal > 0 && batchSent === 0 && batchFailed > 0) {
+        stoppedEarly = true
+        break
+      }
+    }
+
+    return {
+      failed,
+      requested: uniqueIds.length,
+      sent,
+      skipped: Math.max(uniqueIds.length - total, 0),
+      stopMessage,
+      stopReason,
+      stoppedEarly,
+      total,
+    }
+  }
+
   const sendAllMutation = useMutation({
-    mutationFn: sendAllDraftNotifications,
-    onSuccess: (result) => {
-      notify({ message: `Processed ${result.total} drafts. Sent ${result.sent}.`, severity: 'success' })
-      queryClient.invalidateQueries({ queryKey: ['notifications-drafts'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-sent'] })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+    mutationFn: sendDraftsInBatches,
+    onSuccess: async (result) => {
+      const hasFailures = (result.failed || 0) > 0
+      const hasSkipped = (result.skipped || 0) > 0
+      const providerLimitReached = result.stopReason === 'provider_sending_limit'
+      notify({
+        message: `Processed ${result.total} of ${result.requested} drafts. Sent ${result.sent}.${hasFailures ? ` Failed ${result.failed}.` : ''}${hasSkipped ? ` Skipped ${result.skipped}.` : ''}${providerLimitReached ? ' Mail provider daily sending limit reached. Try again after the provider reset window.' : result.stoppedEarly ? ' Sending stopped early due repeated failures/timeouts. You can run it again.' : ''}`,
+        severity: hasFailures || hasSkipped ? 'warning' : 'success',
+      })
+      setSelectedIds([])
+      await refreshNotificationSurfaces()
     },
     onError: (error) => {
       notify({ message: extractApiError(error), severity: 'error' })
+      void refreshNotificationSurfaces()
+    },
+    onSettled: () => {
+      setBulkSendProgress({ processed: 0, total: 0 })
+    },
+  })
+
+  const sendSelectedMutation = useMutation({
+    mutationFn: sendDraftsInBatches,
+    onSuccess: async (result) => {
+      const hasFailures = (result.failed || 0) > 0
+      const hasSkipped = (result.skipped || 0) > 0
+      const providerLimitReached = result.stopReason === 'provider_sending_limit'
+      notify({
+        message: `Processed ${result.total} of ${result.requested} selected drafts. Sent ${result.sent}.${hasFailures ? ` Failed ${result.failed}.` : ''}${hasSkipped ? ` Skipped ${result.skipped}.` : ''}${providerLimitReached ? ' Mail provider daily sending limit reached.' : result.stoppedEarly ? ' Sending stopped early due repeated failures/timeouts.' : ''}`,
+        severity: hasFailures || hasSkipped ? 'warning' : 'success',
+      })
+      setSelectedIds([])
+      await refreshNotificationSurfaces()
+    },
+    onError: (error) => {
+      notify({ message: extractApiError(error), severity: 'error' })
+      void refreshNotificationSurfaces()
+    },
+    onSettled: () => {
+      setBulkSendProgress({ processed: 0, total: 0 })
     },
   })
 
   const sendOneMutation = useMutation({
     mutationFn: sendDraftNotification,
-    onSuccess: () => {
+    onSuccess: async () => {
       notify({ message: 'Notification sent.', severity: 'success' })
-      queryClient.invalidateQueries({ queryKey: ['notifications-drafts'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-sent'] })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      await refreshNotificationSurfaces()
     },
     onError: (error) => {
       notify({ message: extractApiError(error), severity: 'error' })
@@ -120,12 +274,12 @@ export default function NotificationsPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ notificationId, payload }) => updateDraftNotification(notificationId, payload),
-    onSuccess: () => {
+    onSuccess: async () => {
       notify({ message: 'Draft updated successfully.', severity: 'success' })
-      queryClient.invalidateQueries({ queryKey: ['notifications-drafts'] })
       setActiveDraft(null)
       setSubject('')
       setMessage('')
+      await refreshNotificationSurfaces()
     },
     onError: (error) => {
       notify({ message: extractApiError(error), severity: 'error' })
@@ -134,10 +288,9 @@ export default function NotificationsPage() {
 
   const deleteOneMutation = useMutation({
     mutationFn: deleteNotification,
-    onSuccess: () => {
+    onSuccess: async () => {
       notify({ message: 'Notification deleted.', severity: 'success' })
-      queryClient.invalidateQueries({ queryKey: ['notifications-drafts'] })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      await refreshNotificationSurfaces()
     },
     onError: (error) => {
       notify({ message: extractApiError(error), severity: 'error' })
@@ -146,11 +299,10 @@ export default function NotificationsPage() {
 
   const deleteManyMutation = useMutation({
     mutationFn: deleteManyNotifications,
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       notify({ message: `Deleted ${result.deleted} notifications.`, severity: 'success' })
       setSelectedIds([])
-      queryClient.invalidateQueries({ queryKey: ['notifications-drafts'] })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      await refreshNotificationSurfaces()
     },
     onError: (error) => {
       notify({ message: extractApiError(error), severity: 'error' })
@@ -159,11 +311,10 @@ export default function NotificationsPage() {
 
   const deleteAllMutation = useMutation({
     mutationFn: deleteAllNotifications,
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       notify({ message: `Deleted ${result.deleted} notifications.`, severity: 'success' })
       setSelectedIds([])
-      queryClient.invalidateQueries({ queryKey: ['notifications-drafts'] })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      await refreshNotificationSurfaces()
     },
     onError: (error) => {
       notify({ message: extractApiError(error), severity: 'error' })
@@ -172,12 +323,12 @@ export default function NotificationsPage() {
 
   const updateSentMutation = useMutation({
     mutationFn: ({ notificationId, payload }) => updateSentNotification(notificationId, payload),
-    onSuccess: () => {
+    onSuccess: async () => {
       notify({ message: 'Sent notification updated.', severity: 'success' })
-      queryClient.invalidateQueries({ queryKey: ['notifications-sent'] })
       setActiveSent(null)
       setSentSubject('')
       setSentMessage('')
+      await refreshNotificationSurfaces()
     },
     onError: (error) => {
       notify({ message: extractApiError(error), severity: 'error' })
@@ -186,14 +337,13 @@ export default function NotificationsPage() {
 
   const resendSentMutation = useMutation({
     mutationFn: resendSentNotification,
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (result.status === 'sent') {
         notify({ message: 'Notification resent successfully.', severity: 'success' })
       } else {
         notify({ message: 'Resend attempted but failed. Check notification status.', severity: 'warning' })
       }
-      queryClient.invalidateQueries({ queryKey: ['notifications-sent'] })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      await refreshNotificationSurfaces()
     },
     onError: (error) => {
       notify({ message: extractApiError(error), severity: 'error' })
@@ -202,6 +352,7 @@ export default function NotificationsPage() {
 
   const isMutating = (
     sendAllMutation.isPending ||
+    sendSelectedMutation.isPending ||
     sendOneMutation.isPending ||
     updateMutation.isPending ||
     updateSentMutation.isPending ||
@@ -316,6 +467,38 @@ export default function NotificationsPage() {
     setSelectedIds(filteredDrafts.map((draft) => draft.id))
   }
 
+  function handleSendSelected() {
+    if (isMutating) {
+      return
+    }
+
+    if (visibleSelectedIds.length === 0) {
+      notify({ message: 'Select at least one draft notification first.', severity: 'warning' })
+      return
+    }
+
+    const isConfirmed = window.confirm(`Send ${visibleSelectedIds.length} selected draft notifications?`)
+
+    if (!isConfirmed) {
+      return
+    }
+
+    sendSelectedMutation.mutate(visibleSelectedIds)
+  }
+
+  function handleSendAll() {
+    if (isMutating) {
+      return
+    }
+
+    if (drafts.length === 0) {
+      notify({ message: 'No draft notifications available to send.', severity: 'warning' })
+      return
+    }
+
+    sendAllMutation.mutate(drafts.map((draft) => draft.id))
+  }
+
   function handleDeleteOne(notificationId) {
     if (isMutating) {
       return
@@ -383,11 +566,26 @@ export default function NotificationsPage() {
             <button
               className="btn-primary w-full sm:w-auto"
               disabled={isMutating}
-              onClick={() => sendAllMutation.mutate()}
+              onClick={handleSendAll}
               type="button"
             >
               {sendAllMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-              {sendAllMutation.isPending ? 'Sending all...' : 'Send all drafts'}
+              {sendAllMutation.isPending
+                ? `Sending all... ${bulkSendProgress.processed}/${bulkSendProgress.total || drafts.length}`
+                : 'Send all drafts'}
+            </button>
+            <button
+              className="btn-secondary w-full sm:w-auto"
+              disabled={isMutating || visibleSelectedIds.length === 0}
+              onClick={handleSendSelected}
+              type="button"
+            >
+              {sendSelectedMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sendSelectedMutation.isPending
+                ? `Sending selected... ${bulkSendProgress.processed}/${bulkSendProgress.total || visibleSelectedIds.length}`
+                : visibleSelectedIds.length > 0
+                  ? `Send selected (${visibleSelectedIds.length})`
+                  : 'Send selected'}
             </button>
             <button
               className="btn-secondary w-full sm:w-auto"
@@ -430,6 +628,12 @@ export default function NotificationsPage() {
         />
       ) : (
         <>
+          {providerLimitCount > 0 ? (
+            <div className="rounded-2xl border border-amber-400/50 bg-amber-100/85 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/50 dark:bg-amber-900/55 dark:text-amber-100">
+              Sending paused by mail provider limit for {providerLimitCount} draft{providerLimitCount !== 1 ? 's' : ''}. Drafts are pending retry. Click Send all after provider quota reset.
+            </div>
+          ) : null}
+
           {recommendationsQuery.isError ? (
             <div className="rounded-2xl border border-rose-400/40 bg-rose-100/80 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/45 dark:bg-rose-900/65 dark:text-rose-100">
               {extractApiError(recommendationsQuery.error, 'Unable to load recommended products for notifications right now.')}

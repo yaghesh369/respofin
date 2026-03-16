@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Boxes, LoaderCircle, Sparkles, WandSparkles } from 'lucide-react'
 import { listCustomers } from '../api/customers.js'
@@ -54,6 +54,28 @@ export default function RecommendationsPage() {
     () => (customersQuery.data || []).filter((customer) => customer.segment_label === null).length,
     [customersQuery.data],
   )
+
+  const segmentedCustomerIds = useMemo(
+    () => segmentedCustomers.map((customer) => customer.id),
+    [segmentedCustomers],
+  )
+
+  const segmentedCustomerIdSet = useMemo(
+    () => new Set(segmentedCustomerIds),
+    [segmentedCustomerIds],
+  )
+
+  const selectedSegmentedIds = useMemo(
+    () => selectedIds.filter((id) => segmentedCustomerIdSet.has(id)),
+    [selectedIds, segmentedCustomerIdSet],
+  )
+
+  const selectedSegmentedCount = selectedSegmentedIds.length
+  const allSegmentedSelected = segmentedCustomers.length > 0 && selectedSegmentedCount === segmentedCustomers.length
+
+  useEffect(() => {
+    setSelectedIds((currentIds) => currentIds.filter((id) => segmentedCustomerIdSet.has(id)))
+  }, [segmentedCustomerIdSet])
 
   async function refreshRecommendationSurfaces() {
     await Promise.all([
@@ -145,6 +167,15 @@ export default function RecommendationsPage() {
     ))
   }
 
+  function toggleSelectAllRecommendations() {
+    if (allSegmentedSelected) {
+      setSelectedIds((currentIds) => currentIds.filter((id) => !segmentedCustomerIdSet.has(id)))
+      return
+    }
+
+    setSelectedIds((currentIds) => Array.from(new Set([...currentIds, ...segmentedCustomerIds])))
+  }
+
   function runSingleRecommendation() {
     if (isGenerating) {
       return
@@ -163,12 +194,12 @@ export default function RecommendationsPage() {
       return
     }
 
-    if (selectedIds.length === 0) {
+    if (selectedSegmentedIds.length === 0) {
       notify({ message: 'Select at least one customer for bulk recommendations.', severity: 'warning' })
       return
     }
 
-    bulkMutation.mutate(selectedIds)
+    bulkMutation.mutate(selectedSegmentedIds)
   }
 
   function runAllRecommendations() {
@@ -246,18 +277,45 @@ export default function RecommendationsPage() {
 
                     <button className="btn-secondary" disabled={isGenerating} onClick={runBulkRecommendation} type="button">
                       {bulkMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Boxes className="h-4 w-4" />}
-                      {bulkMutation.isPending ? 'Generating...' : `Run bulk (${selectedIds.length})`}
+                      {bulkMutation.isPending ? 'Generating...' : `Run bulk (${selectedSegmentedCount})`}
                     </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-2 text-xs text-slate-600 dark:border-slate-700/70 dark:bg-slate-900/45 dark:text-slate-300">
+                    <span>
+                      Selected {formatNumber(selectedSegmentedCount)} of {formatNumber(segmentedCustomers.length)} segment-ready customers
+                    </span>
+                    {selectedSegmentedCount > 0 ? (
+                      <button
+                        className="font-semibold text-accent transition hover:text-accent/80"
+                        disabled={isGenerating}
+                        onClick={() => setSelectedIds((currentIds) => currentIds.filter((id) => !segmentedCustomerIdSet.has(id)))}
+                        type="button"
+                      >
+                        Clear selection
+                      </button>
+                    ) : null}
                   </div>
 
                   <TableScrollShell className="table-wrap hidden lg:block">
                     <table className="table-base recommendations-table min-w-[1020px]">
                         <thead>
                           <tr>
-                            <th className="w-16">Select</th>
+                            <th className="w-28 whitespace-nowrap text-center normal-case tracking-normal">
+                              <label className="inline-flex cursor-pointer items-center justify-center gap-2">
+                                <input
+                                  checked={allSegmentedSelected}
+                                  className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent"
+                                  disabled={isGenerating}
+                                  onChange={toggleSelectAllRecommendations}
+                                  type="checkbox"
+                                />
+                                <span>Select</span>
+                              </label>
+                            </th>
                             <th className="w-44">Name</th>
                             <th className="w-60">Email</th>
-                            <th className="w-28">Segment</th>
+                            <th className="w-32 whitespace-nowrap text-center normal-case tracking-normal">Segment</th>
                             <th className="w-52">Active product</th>
                             <th className="w-[28rem]">Recommended products</th>
                             <th className="w-44">Created</th>
@@ -266,18 +324,19 @@ export default function RecommendationsPage() {
                         <tbody>
                           {segmentedCustomers.map((customer) => (
                             <tr key={customer.id}>
-                              <td>
+                              <td className="text-center">
                                 <input
                                   checked={selectedIds.includes(customer.id)}
                                   className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent"
                                   disabled={isGenerating}
                                   onChange={() => toggleSelection(customer.id)}
+                                  aria-label={`Select ${customer.name}`}
                                   type="checkbox"
                                 />
                               </td>
                               <td className="font-semibold whitespace-normal break-words">{customer.name}</td>
                               <td className="whitespace-normal break-all">{customer.email}</td>
-                              <td>{customer.segment_label}</td>
+                              <td className="text-center font-semibold">{customer.segment_label}</td>
                               <td className="whitespace-normal break-words">{customer.active_product || 'N/A'}</td>
                               <td>
                                 {recommendationsQuery.isError ? (

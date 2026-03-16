@@ -1,12 +1,16 @@
 import api from './axios.js'
 
 export async function listDraftNotifications() {
-  const response = await api.get('notifications/drafts/')
+  const response = await api.get('notifications/drafts/', {
+    timeout: 60000,
+  })
   return response.data
 }
 
 export async function listSentNotifications() {
-  const response = await api.get('notifications/sent/')
+  const response = await api.get('notifications/sent/', {
+    timeout: 60000,
+  })
   return response.data
 }
 
@@ -26,15 +30,19 @@ export async function updateDraftNotification(notificationId, payload) {
 }
 
 export async function sendDraftNotification(notificationId) {
-  const response = await api.post(`notifications/send/${notificationId}/`, undefined, {
+  const response = await api.post(`notifications/send/${notificationId}/`, {}, {
     timeout: 60000,
   })
   return response.data
 }
 
-export async function sendAllDraftNotifications() {
-  const response = await api.post('notifications/send-all/', undefined, {
-    timeout: 180000,
+export async function sendAllDraftNotifications(notificationIds) {
+  const payload = Array.isArray(notificationIds)
+    ? { notification_ids: notificationIds }
+    : {}
+
+  const response = await api.post('notifications/send-all/', payload, {
+    timeout: 420000,
   })
   return response.data
 }

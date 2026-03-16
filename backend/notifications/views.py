@@ -26,7 +26,7 @@ class NotificationDraftListView(APIView):
             "sent_at",
             "error_message",
             "created_at",
-        )
+        ).order_by("-created_at")
 
         return Response(
             NotificationSerializer(drafts, many=True).data
@@ -140,11 +140,67 @@ class SendAllDraftsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        drafts = list(Notification.objects.filter(
-            customer__owner=request.user,
-            status="draft"
-        ).select_related("customer"))
+        notification_ids = request.data.get("notification_ids")
 
+        drafts_query = Notification.objects.filter(
+            customer__owner=request.user,
+            status="draft",
+        ).select_related("customer").only(
+            "id",
+            "subject",
+            "message",
+            "customer__email",
+        )
+
+        if notification_ids is not None:
+            if not isinstance(notification_ids, list):
+                return Response(
+                    {"error": "notification_ids must be a list"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            unique_ids = list(dict.fromkeys(notification_ids))
+
+            if not unique_ids:
+                return Response(
+                    {
+                        "requested": 0,
+                        "total": 0,
+                        "sent": 0,
+                        "failed": 0,
+                        "skipped": 0,
+                    }
+                )
+
+            drafts = list(drafts_query.filter(id__in=unique_ids))
+            total = len(drafts)
+
+            if total == 0:
+                return Response(
+                    {
+                        "requested": len(unique_ids),
+                        "total": 0,
+                        "sent": 0,
+                        "failed": 0,
+                        "skipped": len(unique_ids),
+                    }
+                )
+
+            result = send_notifications_batch(drafts, request.user)
+
+            return Response(
+                {
+                    "requested": len(unique_ids),
+                    "total": total,
+                    "sent": result["sent"],
+                    "failed": result["failed"],
+                    "skipped": len(unique_ids) - total,
+                    "stop_reason": result.get("stop_reason"),
+                    "stop_message": result.get("stop_message"),
+                }
+            )
+
+        drafts = list(drafts_query)
         total = len(drafts)
 
         if total == 0:
@@ -160,6 +216,8 @@ class SendAllDraftsView(APIView):
             "total": total,
             "sent": result["sent"],
             "failed": result["failed"],
+            "stop_reason": result.get("stop_reason"),
+            "stop_message": result.get("stop_message"),
         })
 
 
