@@ -75,18 +75,26 @@ class CustomerBulkUploadView(APIView):
         if file.size and file.size > self.MAX_FILE_SIZE:
             return Response({"error": "File too large"}, status=status.HTTP_400_BAD_REQUEST)
 
-        data = file.read().decode("utf-8-sig")
+        try:
+            data = file.read().decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return Response(
+                {"error": "Unable to decode CSV. Please upload a UTF-8 encoded file."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         reader = csv.DictReader(io.StringIO(data))
 
         created = 0
         skipped = 0
         errors = []
         row_count = 0
+        valid_rows = []
 
         for row_number, row in enumerate(reader, start=1):
             row_count += 1
             # Normalize: strip text and convert empty numeric strings to None
-            normalized = {k: (v.strip() if isinstance(v, str) else v) for k, v in row.items()}
+            normalized = {k: (v.strip() if isinstance(v, str) else v) for k, v in row.items() if k}
 
             # Convert numeric fields where present
             for num_field in ("age", "income", "credit_score"):
@@ -100,7 +108,8 @@ class CustomerBulkUploadView(APIView):
                             else:
                                 normalized[num_field] = float(normalized[num_field])
                     except (ValueError, TypeError):
-                        errors.append({"row": row_number, "errors": {num_field: "invalid number"}})
+                        if len(errors) < self.MAX_ERRORS_RETURNED:
+                            errors.append({"row": row_number, "errors": {num_field: "invalid number"}})
                         skipped += 1
                         normalized = None
                         break
@@ -115,28 +124,55 @@ class CustomerBulkUploadView(APIView):
                     errors.append({"row": row_number, "errors": serializer.errors})
                 continue
 
-            validated = serializer.validated_data
-            try:
-                customer, was_created = Customer.objects.get_or_create(
-                    owner=request.user,
-                    email=validated["email"],
-                    defaults={k: v for k, v in validated.items() if k != "email"}
-                )
-                if was_created:
-                    created += 1
-                else:
-                    skipped += 1
-            except IntegrityError:
-                skipped += 1
-                if len(errors) < self.MAX_ERRORS_RETURNED:
-                    errors.append({"row": row_number, "errors": "database integrity error"})
-            except Exception as exc:
-                skipped += 1
-                if len(errors) < self.MAX_ERRORS_RETURNED:
-                    errors.append({"row": row_number, "errors": str(exc)})
+            valid_rows.append(serializer.validated_data)
 
         if row_count == 0:
             return Response({"error": "CSV contains no rows"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if valid_rows:
+            candidate_emails = {row["email"] for row in valid_rows if row.get("email")}
+            existing_emails = set(
+                Customer.objects.filter(
+                    owner=request.user,
+                    email__in=candidate_emails,
+                ).values_list("email", flat=True)
+            )
+
+            to_create = []
+            for validated in valid_rows:
+                email = validated["email"]
+
+                # Skip existing records (or duplicate emails within the same CSV upload).
+                if email in existing_emails:
+                    skipped += 1
+                    continue
+
+                existing_emails.add(email)
+                to_create.append(Customer(owner=request.user, **validated))
+
+            if to_create:
+                try:
+                    Customer.objects.bulk_create(to_create, batch_size=500)
+                    created += len(to_create)
+                except IntegrityError:
+                    # Rare race-condition fallback: safely upsert one-by-one.
+                    for customer in to_create:
+                        _, was_created = Customer.objects.get_or_create(
+                            owner=request.user,
+                            email=customer.email,
+                            defaults={
+                                "name": customer.name,
+                                "age": customer.age,
+                                "income": customer.income,
+                                "credit_score": customer.credit_score,
+                                "active_product": customer.active_product,
+                                "is_active": customer.is_active,
+                            },
+                        )
+                        if was_created:
+                            created += 1
+                        else:
+                            skipped += 1
 
         return Response({"created": created, "skipped": skipped, "errors": errors}, status=status.HTTP_201_CREATED)
 
@@ -145,7 +181,9 @@ class CustomerDeleteAllView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request):
-        deleted_count, _ = Customer.objects.filter(owner=request.user).delete()
+        customer_qs = Customer.objects.filter(owner=request.user)
+        deleted_count = customer_qs.count()
+        customer_qs.delete()
         return Response(
             {"deleted": deleted_count},
             status=status.HTTP_200_OK

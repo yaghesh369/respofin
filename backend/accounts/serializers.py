@@ -1,12 +1,16 @@
+import re
+
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import serializers
+
 from .models import Profile
 
+PASSWORD_POLICY_REGEX = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$')
+
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=6)
 
     class Meta:
         model = User
@@ -15,6 +19,13 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email already registered")
+        return value
+
+    def validate_password(self, value):
+        if not PASSWORD_POLICY_REGEX.match(value):
+            raise serializers.ValidationError(
+                "Password must be at least 6 characters and include uppercase, lowercase, number, and special character."
+            )
         return value
 
     def create(self, validated_data):

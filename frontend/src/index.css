@@ -1,68 +1,754 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+  --accent-rgb: 74 201 183;
+  --accent-soft-rgb: 134 224 210;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+:root.dark {
+  color-scheme: dark;
 }
-a:hover {
-  color: #535bf2;
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  @apply min-h-screen min-w-[320px] bg-page-light font-body text-slate-800 antialiased leading-relaxed transition-colors duration-300 dark:bg-page-dark dark:text-slate-100;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+#root {
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* backdrop-canvas: intentionally no isolation so layers composite directly over the page background */
+
+::selection {
+  background: rgb(var(--accent-rgb) / 0.3);
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184 / 0.4);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184 / 0.56);
+  background-clip: padding-box;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-3xl border border-slate-300/40 bg-white/70 shadow-panel backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-900/70;
   }
-  a:hover {
-    color: #747bff;
+
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent/70 disabled:cursor-not-allowed disabled:opacity-60;
   }
-  button {
-    background-color: #f9f9f9;
+
+  .btn-primary {
+    @apply btn-base border-transparent bg-accent text-slate-950 hover:bg-accent/90;
+  }
+
+  .btn-secondary {
+    @apply btn-base border-slate-300/70 bg-white/70 text-slate-800 hover:bg-white dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100 dark:hover:bg-slate-900;
+  }
+
+  .btn-ghost {
+    @apply btn-base border-transparent bg-transparent text-slate-700 hover:bg-slate-200/70 dark:text-slate-200 dark:hover:bg-slate-800/70;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200;
+  }
+
+  .field-input {
+    @apply w-full rounded-2xl border border-slate-300/70 bg-white/70 px-4 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500;
+  }
+
+  .field-error {
+    @apply mt-1 text-xs font-medium text-rose-500;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .table-wrap {
+    @apply overflow-hidden rounded-2xl border border-slate-300/70 bg-white dark:border-slate-700 dark:bg-slate-900;
+  }
+
+  .table-scroll-shell {
+    @apply relative;
+  }
+
+  .table-scroll-top {
+    @apply overflow-x-auto overflow-y-hidden border-b border-slate-200/80 dark:border-slate-700/80;
+    height: 14px;
+    scrollbar-width: thin;
+  }
+
+  .table-scroll-top-hidden {
+    @apply hidden;
+  }
+
+  .table-scroll-top::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .table-scroll-top::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .table-scroll-top::-webkit-scrollbar-thumb {
+    background: rgb(148 163 184 / 0.56);
+    border-radius: 999px;
+  }
+
+  .table-scroll-spacer {
+    height: 1px;
+  }
+
+  .table-scroll-main {
+    @apply overflow-x-auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .table-scroll-main-draggable {
+    cursor: grab;
+  }
+
+  .table-scroll-main-dragging {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  .table-scroll-main::-webkit-scrollbar {
+    height: 0;
+  }
+
+  .table-scroll-edge {
+    position: absolute;
+    top: 14px;
+    bottom: 0;
+    width: 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.16s ease;
+    z-index: 1;
+  }
+
+  .table-scroll-edge-left {
+    left: 0;
+    background: linear-gradient(to right, rgb(255 255 255 / 0.96), rgb(255 255 255 / 0));
+  }
+
+  .table-scroll-edge-right {
+    right: 0;
+    background: linear-gradient(to left, rgb(255 255 255 / 0.96), rgb(255 255 255 / 0));
+  }
+
+  .table-scroll-shell[data-can-scroll-left='true'] .table-scroll-edge-left {
+    opacity: 1;
+  }
+
+  .table-scroll-shell[data-can-scroll-right='true'] .table-scroll-edge-right {
+    opacity: 1;
+  }
+
+  :root.dark .table-scroll-edge-left {
+    background: linear-gradient(to right, rgb(15 23 42 / 0.92), rgb(15 23 42 / 0));
+  }
+
+  :root.dark .table-scroll-edge-right {
+    background: linear-gradient(to left, rgb(15 23 42 / 0.92), rgb(15 23 42 / 0));
+  }
+
+  .table-base {
+    @apply min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700/80;
+  }
+
+  .table-base thead {
+    @apply bg-slate-100 dark:bg-slate-800;
+  }
+
+  .table-base th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300;
+  }
+
+  .table-base td {
+    @apply px-4 py-3 align-top text-slate-800 dark:text-slate-100;
+  }
+
+  .table-base tbody tr {
+    @apply border-t border-slate-200 bg-white transition hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900 dark:hover:bg-slate-800/70;
+  }
+
+  .recommendations-table {
+    table-layout: fixed;
+  }
+
+  .recommendations-table th,
+  .recommendations-table td {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+:root[data-compact='true'] {
+  font-size: 15px;
+}
+
+:root[data-compact='true'] body {
+  line-height: 1.45;
+}
+
+:root[data-compact='true'] .panel {
+  border-radius: 1.1rem;
+}
+
+:root[data-compact='true'] .btn-base {
+  gap: 0.42rem;
+  padding: 0.42rem 0.82rem;
+}
+
+:root[data-compact='true'] .field-label {
+  margin-bottom: 0.32rem;
+}
+
+:root[data-compact='true'] .field-input {
+  border-radius: 0.9rem;
+  padding: 0.5rem 0.78rem;
+}
+
+:root[data-compact='true'] .table-base th,
+:root[data-compact='true'] .table-base td {
+  padding: 0.55rem 0.75rem;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+@keyframes meshPulse {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate3d(6%, -4%, 0) scale(1.14);
+  }
+}
+
+@keyframes driftDiagonal {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-5%, 5.5%, 0);
+  }
+}
+
+@keyframes shimmerSlide {
+  0% {
+    opacity: 0;
+    transform: translateX(-26%) rotate(12deg);
+  }
+  15%,
+  85% {
+    opacity: 0.62;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(26%) rotate(12deg);
+  }
+}
+
+@keyframes seedFloat {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  35% {
+    opacity: 0.84;
+    transform: translate3d(14px, -22px, 0) scale(1.12);
+  }
+  65% {
+    opacity: 0.55;
+    transform: translate3d(-16px, 14px, 0) scale(0.92);
+  }
+}
+
+@keyframes haloRotate {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  to {
+    transform: translate3d(0, 0, 0) rotate(360deg) scale(1.08);
+  }
+}
+
+@keyframes ribbonSweep {
+  0% {
+    transform: translate3d(-24%, 0, 0) rotate(11deg);
+  }
+  50% {
+    transform: translate3d(0%, -3.5%, 0) rotate(11deg);
+  }
+  100% {
+    transform: translate3d(24%, 0, 0) rotate(11deg);
+  }
+}
+
+@keyframes ringOrbit {
+  0%,
+  100% {
+    opacity: 0.44;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.78;
+    transform: translate3d(3%, -4%, 0) scale(1.12) rotate(180deg);
+  }
+}
+
+@keyframes ringOrbitAlt {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translate3d(-4%, 4%, 0) scale(1.1) rotate(-180deg);
+  }
+}
+
+.kinetic-halo {
+  border-radius: 999px;
+  filter: blur(30px);
+  pointer-events: none;
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.kinetic-halo-a {
+  animation: haloRotate 24s linear infinite;
+  background: conic-gradient(from 0deg, rgb(74 201 183 / 0.74), rgb(16 185 129 / 0.32), rgb(212 146 92 / 0.66), rgb(99 102 241 / 0.54), rgb(74 201 183 / 0.74));
+  height: 64vh;
+  left: -14vw;
+  top: -18vh;
+  width: 64vh;
+}
+
+.kinetic-halo-b {
+  animation: haloRotate 30s linear infinite reverse;
+  background: conic-gradient(from 120deg, rgb(212 146 92 / 0.66), rgb(245 158 11 / 0.34), rgb(74 201 183 / 0.6), rgb(99 102 241 / 0.46), rgb(212 146 92 / 0.66));
+  height: 56vh;
+  right: -12vw;
+  top: 24vh;
+  width: 56vh;
+}
+
+.motion-ribbon {
+  border-radius: 999px;
+  filter: blur(12px);
+  pointer-events: none;
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.motion-ribbon-a {
+  animation: ribbonSweep 9s ease-in-out infinite alternate;
+  background: linear-gradient(90deg, rgb(74 201 183 / 0), rgb(74 201 183 / 0.74), rgb(236 254 255 / 0.46), rgb(212 146 92 / 0.72), rgb(212 146 92 / 0));
+  height: 14vh;
+  left: -12%;
+  top: 34%;
+  width: 124%;
+}
+
+.motion-ribbon-b {
+  animation: ribbonSweep 11s ease-in-out infinite alternate-reverse;
+  background: linear-gradient(90deg, rgb(99 102 241 / 0), rgb(99 102 241 / 0.6), rgb(236 254 255 / 0.36), rgb(74 201 183 / 0.62), rgb(74 201 183 / 0));
+  height: 12vh;
+  left: -14%;
+  top: 62%;
+  width: 128%;
+}
+
+.pulse-ring {
+  border: 1.8px solid rgb(236 254 255 / 0.56);
+  border-radius: 999px;
+  pointer-events: none;
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.pulse-ring-a {
+  animation: ringOrbit 8s ease-in-out infinite;
+  height: 36vmax;
+  left: -12vmax;
+  top: 10%;
+  width: 36vmax;
+}
+
+.pulse-ring-b {
+  animation: ringOrbitAlt 9.5s ease-in-out infinite;
+  height: 30vmax;
+  right: -10vmax;
+  top: 40%;
+  width: 30vmax;
+}
+
+.mesh-layer {
+  inset: -16%;
+  pointer-events: none;
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.mesh-layer-a {
+  animation: meshPulse 14s ease-in-out infinite;
+  background: radial-gradient(circle at 16% 26%, rgb(74 201 183 / 0.62), transparent 39%), radial-gradient(circle at 82% 24%, rgb(236 254 255 / 0.28), transparent 31%), radial-gradient(circle at 62% 74%, rgb(212 146 92 / 0.6), transparent 41%);
+  filter: blur(32px);
+}
+
+.mesh-layer-b {
+  animation: meshPulse 18s ease-in-out infinite reverse;
+  background: radial-gradient(circle at 24% 74%, rgb(99 102 241 / 0.56), transparent 43%), radial-gradient(circle at 76% 62%, rgb(74 201 183 / 0.54), transparent 37%);
+  filter: blur(36px);
+}
+
+.parallax-grid {
+  opacity: 0.9;
+}
+
+.grid-drift {
+  animation: driftDiagonal 20s ease-in-out infinite;
+}
+
+.light-streak {
+  background: linear-gradient(90deg, transparent 0%, rgb(236 254 255 / 0.08) 34%, rgb(236 254 255 / 0.36) 50%, rgb(236 254 255 / 0.08) 66%, transparent 100%);
+  bottom: -12%;
+  pointer-events: none;
+  position: absolute;
+  top: -12%;
+  width: 44%;
+  will-change: transform, opacity;
+}
+
+.light-streak-a {
+  animation: shimmerSlide 8s linear infinite;
+  left: -28%;
+}
+
+.light-streak-b {
+  animation: shimmerSlide 10s linear infinite;
+  animation-delay: -4s;
+  right: -28%;
+  transform: rotate(-9deg);
+}
+
+.floating-seed {
+  animation-name: seedFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  background: radial-gradient(circle at 28% 28%, rgb(236 254 255 / 0.95), rgb(74 201 183 / 0.24));
+  border-radius: 999px;
+  box-shadow: 0 0 18px rgb(74 201 183 / 0.4);
+  opacity: 0.9;
+  pointer-events: none;
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.energy-node {
+  animation-name: seedFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  border: 1.6px solid rgb(236 254 255 / 0.72);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(236 254 255 / 0.16), 0 0 26px rgb(74 201 183 / 0.42);
+  pointer-events: none;
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.energy-node-core {
+  background: radial-gradient(circle at 30% 30%, rgb(236 254 255 / 0.96), rgb(74 201 183 / 0.32));
+  border-radius: 999px;
+  display: block;
+  height: 42%;
+  left: 29%;
+  position: absolute;
+  top: 29%;
+  width: 42%;
+}
+
+@keyframes auroraDriftA {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(38px, -22px, 0) scale(1.08);
+  }
+}
+
+@keyframes auroraDriftB {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-36px, 24px, 0) scale(1.06);
+  }
+}
+
+@keyframes auroraDriftC {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(22px, 28px, 0) scale(1.1);
+  }
+}
+
+@keyframes orbSway {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-22px, 18px, 0) scale(1.08);
+  }
+}
+
+@keyframes orbSwayAlt {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(18px, -20px, 0) scale(1.04);
+  }
+}
+
+@keyframes brandSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes brandPulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.aurora-orb {
+  border-radius: 999px;
+  filter: blur(28px);
+  will-change: transform, opacity;
+}
+
+.aurora-orb-a {
+  animation: auroraDriftA 10s ease-in-out infinite;
+}
+
+.aurora-orb-b {
+  animation: auroraDriftB 12s ease-in-out infinite;
+}
+
+.aurora-orb-c {
+  animation: auroraDriftC 11s ease-in-out infinite;
+}
+
+.animate-orb-sway {
+  animation: orbSway 14s ease-in-out infinite;
+}
+
+.animate-orb-sway-alt {
+  animation: orbSwayAlt 16s ease-in-out infinite;
+}
+
+.brand-orbit {
+  animation: brandSpin 12s linear infinite;
+}
+
+.brand-glint {
+  animation: brandPulse 3s ease-in-out infinite;
+}
+
+/* no mix-blend-mode overrides: each layer composites at its natural opacity over the page background */
+
+/* ── light mode overrides ───────────────────────────────────────────────────────── */
+/* Layers composite at natural opacity (no blend modes) over the warm cream bg-page-light.               */
+/* Use deeper cyan/amber accents and slightly stronger contrast so motion stays visible in light mode.     */
+
+:root:not(.dark) .backdrop-canvas {
+  filter: saturate(1.22) contrast(1.14) brightness(0.94);
+}
+
+:root:not(.dark) .parallax-grid {
+  opacity: 0.74;
+}
+
+/* Kinetic halos — darker cyan/amber glows */
+:root:not(.dark) .kinetic-halo {
+  filter: blur(24px);
+}
+
+:root:not(.dark) .kinetic-halo-a {
+  background: conic-gradient(from 0deg, rgb(8 145 178 / 0.66), rgb(13 148 136 / 0.56), rgb(217 119 6 / 0.56), rgb(67 56 202 / 0.52), rgb(8 145 178 / 0.66));
+}
+
+:root:not(.dark) .kinetic-halo-b {
+  background: conic-gradient(from 120deg, rgb(217 119 6 / 0.58), rgb(202 138 4 / 0.48), rgb(13 148 136 / 0.54), rgb(29 78 216 / 0.48), rgb(217 119 6 / 0.58));
+}
+
+/* Motion ribbons — stronger sweeping colour bands */
+:root:not(.dark) .motion-ribbon {
+  filter: blur(10px);
+}
+
+:root:not(.dark) .motion-ribbon-a {
+  background: linear-gradient(90deg, rgb(8 145 178 / 0), rgb(8 145 178 / 0.6), rgb(13 148 136 / 0.5), rgb(217 119 6 / 0.62), rgb(217 119 6 / 0));
+}
+
+:root:not(.dark) .motion-ribbon-b {
+  background: linear-gradient(90deg, rgb(29 78 216 / 0), rgb(29 78 216 / 0.54), rgb(13 148 136 / 0.46), rgb(217 119 6 / 0.56), rgb(217 119 6 / 0));
+}
+
+/* Mesh layers */
+:root:not(.dark) .mesh-layer {
+  filter: blur(22px);
+}
+
+:root:not(.dark) .mesh-layer-a {
+  background: radial-gradient(circle at 18% 24%, rgb(13 148 136 / 0.48), transparent 40%),
+              radial-gradient(circle at 76% 28%, rgb(29 78 216 / 0.36), transparent 36%),
+              radial-gradient(circle at 62% 74%, rgb(217 119 6 / 0.42), transparent 42%);
+}
+
+:root:not(.dark) .mesh-layer-b {
+  background: radial-gradient(circle at 20% 72%, rgb(29 78 216 / 0.38), transparent 43%),
+              radial-gradient(circle at 78% 58%, rgb(13 148 136 / 0.34), transparent 40%);
+}
+
+/* Light streaks — high-contrast cyan shimmer */
+:root:not(.dark) .light-streak {
+  background: linear-gradient(90deg, transparent 0%, rgb(8 145 178 / 0.2) 34%, rgb(8 145 178 / 0.44) 50%, rgb(13 148 136 / 0.2) 66%, transparent 100%);
+}
+
+/* Floating seeds — bright glowing dots */
+:root:not(.dark) .floating-seed {
+  background: radial-gradient(circle at 28% 28%, rgb(255 255 255 / 0.96), rgb(8 145 178 / 0.45));
+  box-shadow: 0 0 16px rgb(8 145 178 / 0.5);
+}
+
+/* Energy nodes — clearly visible orb nodes */
+:root:not(.dark) .energy-node {
+  border-color: rgb(8 145 178 / 0.62);
+  box-shadow: 0 0 0 1px rgb(8 145 178 / 0.2), 0 0 24px rgb(8 145 178 / 0.4);
+}
+
+:root:not(.dark) .energy-node-core {
+  background: radial-gradient(circle at 30% 30%, rgb(255 255 255 / 0.98), rgb(8 145 178 / 0.52));
+}
+
+/* Pulse rings — use cyan so they're visible on cream (not the near-white default) */
+:root:not(.dark) .pulse-ring {
+  border-color: rgb(8 145 178 / 0.44);
+}
+
+/* Aurora orbs — standard blur, colours already tuned in JSX */
+:root:not(.dark) .aurora-orb {
+  filter: blur(20px);
+}
+
+:root[data-motion='reduced'] {
+  scroll-behavior: auto;
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .aurora-orb,
+  :root:not([data-motion='full']) .animate-orb-sway,
+  :root:not([data-motion='full']) .animate-orb-sway-alt,
+  :root:not([data-motion='full']) .brand-orbit,
+  :root:not([data-motion='full']) .brand-glint,
+  :root:not([data-motion='full']) .kinetic-halo,
+  :root:not([data-motion='full']) .motion-ribbon,
+  :root:not([data-motion='full']) .mesh-layer,
+  :root:not([data-motion='full']) .pulse-ring,
+  :root:not([data-motion='full']) .grid-drift,
+  :root:not([data-motion='full']) .light-streak,
+  :root:not([data-motion='full']) .energy-node,
+  :root:not([data-motion='full']) .floating-seed {
+    animation: none !important;
   }
 }

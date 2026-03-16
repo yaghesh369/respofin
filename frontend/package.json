@@ -10,25 +10,35 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/material": "^7.3.6",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
+    "@fontsource/manrope": "^5.2.8",
+    "@fontsource/outfit": "^5.2.8",
+    "@fontsource/sora": "^5.2.8",
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.2",
     "chart.js": "^4.5.1",
+    "framer-motion": "^12.36.0",
+    "lucide-react": "^0.577.0",
     "react": "^19.2.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.11.0"
+    "react-hook-form": "^7.71.2",
+    "react-router-dom": "^7.11.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.17",
     "vite": "^7.2.4"
   }
 }
