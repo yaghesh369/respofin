@@ -1,247 +1,412 @@
-# Customer Segmentation for Cross-Selling Financial Products
+# RespoFin
 
-A full-stack web application that performs customer segmentation using machine learning
-and generates personalized financial product recommendations for cross-selling.
-This project simulates a real-world banking decision support system.
+Customer segmentation and cross-sell recommendation platform for financial products.
 
---------------------------------------------------
+RespoFin is a full-stack monorepo with:
+- Django REST API backend
+- React + Vite frontend
+- ML-powered segmentation (K-Means)
+- Recommendation, notification, and analytics workflows
 
-FEATURES
+This README is designed so a new contributor can clone the repo and run the full project end-to-end.
 
-• Secure authentication using JWT
-• Customer data management (CRUD + CSV upload)
-• Customer segmentation using K-Means clustering
-• Rule-based financial product recommendations
-• Email notifications for personalized offers
-• Analytics dashboards and insights
-• Monorepo architecture (Backend + Frontend)
+## Table of Contents
 
---------------------------------------------------
+- Overview
+- Tech Stack
+- Repository Structure
+- Prerequisites
+- Quick Start (Local Development)
+- Environment Variables
+- End-to-End Usage Flow
+- API Reference (High Level)
+- Development Commands
+- Troubleshooting
+- Security and Production Notes
+- Contributing
 
-TECH STACK
+## Overview
+
+Core capabilities:
+- JWT authentication with refresh-token flow
+- Customer CRUD and CSV bulk upload
+- K-Means segmentation for customer cohorts
+- Rule-based product recommendations per segment
+- Draft and sent email notification management
+- Analytics dashboard data + PDF export
+
+Business flow:
+1. User signs up and logs in.
+2. Customer data is added manually or uploaded via CSV.
+3. Segmentation groups customers into clusters.
+4. Recommendations are generated per customer.
+5. Draft notifications are created and sent.
+6. Analytics summarize customer, recommendation, and notification outcomes.
+
+## Tech Stack
 
 Backend:
-• Django
-• Django REST Framework
-• JWT Authentication
-• NumPy, Pandas, Scikit-learn
-• SQLite (Development)
-• PostgreSQL (Production)
+- Python
+- Django 6
+- Django REST Framework
+- SimpleJWT
+- scikit-learn, NumPy
+- PostgreSQL via DATABASE_URL
+- ReportLab (PDF export)
 
 Frontend:
-• React
-• Vite
-• Axios
-• Chart.js / Recharts
+- React 19
+- Vite 7
+- Axios
+- React Query
+- Chart.js
+- Framer Motion
+- Tailwind CSS
 
---------------------------------------------------
+## Repository Structure
 
-PROJECT STRUCTURE (MONOREPO)
-
+```text
 respofin/
-│
-├── backend/
-│   ├── manage.py
-│   ├── requirements.txt
-│   ├── config/
-│   ├── apps/
-│   └── venv/        (not committed)
-│
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   ├── package.json
-│   ├── vite.config.js
-│   └── node_modules/ (not committed)
-│
-├── .gitignore
-└── README.md
+|-- backend/
+|   |-- manage.py
+|   |-- requirements.txt
+|   |-- config/
+|   |-- accounts/
+|   |-- customers/
+|   |-- segmentation/
+|   |-- recommendations/
+|   |-- notifications/
+|   \-- analytics/
+|-- frontend/
+|   |-- package.json
+|   |-- vite.config.js
+|   \-- src/
+|-- customers_test_data.csv
+\-- README.md
+```
 
---------------------------------------------------
+## Prerequisites
 
-PREREQUISITES
-
-• Python 3.11 or higher
-• Node.js 18 or higher
-• npm 9 or higher
-• Git
+- Git
+- Python 3.12+
+- Node.js 20+
+- npm 10+
+- A PostgreSQL database URL (SSL-enabled is recommended and aligns with current settings)
 
 Check versions:
 
+```bash
 python --version
 node --version
 npm --version
+```
 
---------------------------------------------------
+## Quick Start (Local Development)
 
-SETUP INSTRUCTIONS (START FROM SCRATCH)
+### 1. Clone repository
 
-STEP 1: CLONE THE REPOSITORY
-
+```bash
 git clone https://github.com/yaghesh369/respofin.git
 cd respofin
+```
 
---------------------------------------------------
+### 2. Setup backend
 
-BACKEND SETUP (DJANGO)
-
-STEP 2: CREATE VIRTUAL ENVIRONMENT
-
+```bash
 cd backend
-
-Remove old virtual environment if it exists:
-
-Windows:
-rmdir /s /q venv
-
-Linux / macOS:
-rm -rf venv
-
-Create virtual environment:
 python -m venv venv
+```
 
---------------------------------------------------
+Activate virtual environment:
 
-STEP 3: ACTIVATE VIRTUAL ENVIRONMENT
+PowerShell:
 
-Windows:
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+Command Prompt:
+
+```bat
 venv\Scripts\activate
-
-Linux / macOS:
-source venv/bin/activate
-
---------------------------------------------------
-
-STEP 4: INSTALL BACKEND DEPENDENCIES
-
-Upgrade pip tools:
-python -m pip install --upgrade pip setuptools wheel
+```
 
 Install dependencies:
+
+```bash
+python -m pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
+```
 
-If errors occur (Windows users):
-pip install --only-binary=:all: -r requirements.txt
+### 3. Configure backend environment
 
---------------------------------------------------
+Create file: backend/.env
 
-STEP 5: RUN DATABASE MIGRATIONS
-
-python manage.py migrate
-
---------------------------------------------------
-
-STEP 6: START DJANGO SERVER
-
-python manage.py runserver
-
-Backend will run at:
-http://127.0.0.1:8000
-
---------------------------------------------------
-
-FRONTEND SETUP (REACT + VITE)
-
-STEP 7: INSTALL FRONTEND DEPENDENCIES
-
-cd ../frontend
-npm install
-
---------------------------------------------------
-
-STEP 8: START FRONTEND SERVER
-
-npm run dev
-
-Frontend will run at:
-http://localhost:5173
-
---------------------------------------------------
-
-ENVIRONMENT VARIABLES
-
-Create a .env file inside backend folder:
-
-SECRET_KEY=your-django-secret-key
+```env
+SECRET_KEY=replace-with-a-strong-secret
 DEBUG=True
+ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Example: postgresql://USER:PASSWORD@HOST:PORT/DBNAME?sslmode=require
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/respofin?sslmode=require
+
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-email@example.com
 EMAIL_HOST_PASSWORD=your-app-password
+EMAIL_TIMEOUT=8
 
-IMPORTANT:
-Do NOT commit .env files to GitHub.
+NOTIFICATION_SEND_WORKERS=2
+NOTIFICATION_PARALLEL_THRESHOLD=30
+```
 
---------------------------------------------------
+If your local PostgreSQL instance does not support SSL, either use a managed SSL-enabled database for development, or temporarily relax SSL enforcement in backend/config/settings.py for local-only usage.
 
-APPLICATION WORKFLOW
+Generate a Django secret key (optional helper):
 
-1. Admin logs in
-2. Customer data is added or uploaded
-3. Machine learning segmentation is executed
-4. Customers are grouped into segments
-5. Product recommendations are generated
-6. Analytics dashboards are displayed
-7. Personalized emails are sent
+```bash
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
 
---------------------------------------------------
+### 4. Run migrations and start backend
 
-CONTRIBUTION GUIDELINES
+```bash
+python manage.py migrate
+python manage.py runserver
+```
 
-1. Fork the repository
-2. Clone your fork
-3. Create a new branch
+Backend base URL:
+- http://127.0.0.1:8000
 
+API base URL:
+- http://127.0.0.1:8000/api/
+
+Admin:
+- http://127.0.0.1:8000/admin/
+
+### 5. Setup frontend
+
+Open a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend URL:
+- http://localhost:5173
+
+Note: frontend requests to /api are proxied to http://127.0.0.1:8000 using frontend/vite.config.js.
+
+## Environment Variables
+
+Backend variables used by code:
+
+| Variable | Required | Description |
+|---|---|---|
+| SECRET_KEY | Yes | Django secret key |
+| DEBUG | Yes | True/False |
+| ALLOWED_HOSTS | Yes | Comma-separated hosts |
+| DATABASE_URL | Yes | Database connection URL |
+| EMAIL_HOST | Yes (for sending emails) | SMTP host |
+| EMAIL_PORT | Yes (for sending emails) | SMTP port |
+| EMAIL_USE_TLS | Yes (for sending emails) | True/False |
+| EMAIL_HOST_USER | Yes (for sending emails) | SMTP username/from address |
+| EMAIL_HOST_PASSWORD | Yes (for sending emails) | SMTP password/app password |
+| EMAIL_TIMEOUT | No | SMTP timeout in seconds (default: 8) |
+| NOTIFICATION_SEND_WORKERS | No | Parallel sender workers (default: 2) |
+| NOTIFICATION_PARALLEL_THRESHOLD | No | Batch size threshold for parallel sending (default: 30) |
+
+Frontend currently does not require a .env for local development because Vite proxy handles API routing.
+
+## End-to-End Usage Flow
+
+After both servers are running:
+
+1. Register a new user from the UI.
+2. Log in to obtain JWT session.
+3. Add customers manually or upload CSV.
+4. Run segmentation.
+5. Generate recommendations.
+6. Review and send notifications.
+7. Open analytics and optionally download PDF report.
+
+Sample CSV file is included at repository root:
+- customers_test_data.csv
+
+Expected CSV headers:
+
+```csv
+name,email,age,income,credit_score,active_product,is_active
+```
+
+Notes:
+- age, income, and credit_score are required for segmentation.
+- At least 3 customers with complete numeric fields are needed to run segmentation.
+
+## API Reference (High Level)
+
+Base path: /api/
+
+Authentication:
+- POST auth/register/
+- POST auth/login/
+- POST auth/logout/
+- POST auth/token/refresh/
+- GET auth/profile/
+- PATCH auth/profile/
+
+Customers:
+- GET customers/
+- POST customers/
+- PATCH customers/{id}/
+- DELETE customers/{id}/
+- POST customers/bulk-upload/
+- DELETE customers/delete-all/
+
+Segmentation:
+- POST segmentation/run/
+- GET segmentation/stats/
+
+Recommendations:
+- GET recommendations/list/
+- POST recommendations/customer/{customer_id}/
+- POST recommendations/bulk/
+- POST recommendations/all/
+
+Notifications:
+- GET notifications/drafts/
+- GET notifications/sent/
+- PATCH notifications/edit/{notification_id}/
+- PATCH notifications/sent/edit/{notification_id}/
+- POST notifications/send/{notification_id}/
+- POST notifications/send-all/
+- POST notifications/sent/resend/{notification_id}/
+- DELETE notifications/delete/{notification_id}/
+- POST notifications/delete-many/
+- DELETE notifications/delete-all/
+
+Analytics:
+- GET analytics/
+- GET analytics/download-pdf/
+
+Auth behavior:
+- Most endpoints require Bearer access token.
+- Access token is refreshed through auth/token/refresh/.
+- Password policy on registration: at least 6 characters, with uppercase, lowercase, number, and special character.
+- Logout endpoint expects a refresh token in the request body.
+
+## API Smoke Test (Optional)
+
+Use these commands after backend is running to verify auth quickly:
+
+```bash
+# Register
+curl -X POST http://127.0.0.1:8000/api/auth/register/ \
+	-H "Content-Type: application/json" \
+	-d '{"username":"demo_user","email":"demo_user@example.com","password":"Demo@123"}'
+
+# Login
+curl -X POST http://127.0.0.1:8000/api/auth/login/ \
+	-H "Content-Type: application/json" \
+	-d '{"username":"demo_user","password":"Demo@123"}'
+```
+
+Use the returned access token as:
+
+```text
+Authorization: Bearer <access_token>
+```
+
+## Development Commands
+
+Backend (from backend/):
+
+```bash
+python manage.py migrate
+python manage.py runserver
+python manage.py test
+python manage.py createsuperuser
+```
+
+Frontend (from frontend/):
+
+```bash
+npm run dev
+npm run lint
+npm run build
+npm run preview
+```
+
+## Troubleshooting
+
+### 1) Database connection fails on startup
+
+Symptoms:
+- Backend crashes during startup/migrate.
+
+Checks:
+- Confirm DATABASE_URL is present in backend/.env.
+- Confirm credentials/host/port/db name are correct.
+- Confirm your DB accepts SSL if using sslmode=require.
+
+### 2) 401 Unauthorized on API calls
+
+Checks:
+- Log in again and confirm tokens are stored.
+- Ensure Authorization header is Bearer <access_token>.
+- Refresh token via auth/token/refresh/ when access token expires.
+
+### 3) Frontend cannot reach API
+
+Checks:
+- Backend is running on 127.0.0.1:8000.
+- Frontend is running with npm run dev.
+- Do not change /api base path unless you update proxy and API client.
+
+### 4) Email sending fails
+
+Checks:
+- Verify SMTP credentials and port.
+- For Gmail, use App Password (not normal account password).
+- Inspect failed notifications in the notifications module.
+
+### 5) Segmentation does not run
+
+Checks:
+- Ensure at least 3 customers exist with age, income, and credit_score values.
+
+## Security and Production Notes
+
+Before production deployment:
+- Set DEBUG=False
+- Use a strong SECRET_KEY
+- Configure ALLOWED_HOSTS for your domain(s)
+- Use production-grade PostgreSQL
+- Secure SMTP credentials with secret management
+- Enable HTTPS at reverse proxy/load balancer level
+
+Do not commit:
+- backend/.env
+- frontend/.env
+- backend/venv
+- frontend/node_modules
+
+## Contributing
+
+1. Fork the repository.
+2. Create a branch.
+
+```bash
 git checkout -b feature/your-feature-name
+```
 
-4. Make changes and test locally
-5. Commit changes
-6. Push and create a Pull Request
+3. Make changes and test locally.
+4. Commit and push.
+5. Open a Pull Request.
 
---------------------------------------------------
+## Maintainer
 
-BACKEND DEPENDENCY VERSIONS
-
-• Django: 6.0.1
-• Django REST Framework: 3.16.1
-• NumPy: 2.4.0
-• Pandas: 2.3.3
-• Scikit-learn: 1.8.0
-• SciPy: 1.16.3
-• JWT: SimpleJWT
-
---------------------------------------------------
-
-IMPORTANT NOTES
-
-• Always activate the virtual environment before backend work
-• Use Python 3.11 or higher
-• Do not commit venv or node_modules
-• Start backend before frontend
-
---------------------------------------------------
-
-FUTURE ENHANCEMENTS
-
-• Real-time transaction streaming
-• Automated email and SMS notifications
-• Advanced ML and deep learning models
-• Mobile application
-• Banking system integrations
-
---------------------------------------------------
-
-MAINTAINER
-
-Yaghesh
-GitHub: https://github.com/yaghesh369
-
---------------------------------------------------
-
-REFERENCES
-
-Django: https://docs.djangoproject.com/
-Django REST Framework: https://www.django-rest-framework.org/
-React: https://react.dev/
-Vite: https://vitejs.dev/
-Scikit-learn: https://scikit-learn.org/
+- GitHub: https://github.com/yaghesh369

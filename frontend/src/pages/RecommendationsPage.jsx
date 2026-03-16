@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Boxes, LoaderCircle, Sparkles, WandSparkles } from 'lucide-react'
 import { listCustomers } from '../api/customers.js'
@@ -72,10 +72,6 @@ export default function RecommendationsPage() {
 
   const selectedSegmentedCount = selectedSegmentedIds.length
   const allSegmentedSelected = segmentedCustomers.length > 0 && selectedSegmentedCount === segmentedCustomers.length
-
-  useEffect(() => {
-    setSelectedIds((currentIds) => currentIds.filter((id) => segmentedCustomerIdSet.has(id)))
-  }, [segmentedCustomerIdSet])
 
   async function refreshRecommendationSurfaces() {
     await Promise.all([

@@ -10,10 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-sans": "^5.2.8",
     "@fontsource/manrope": "^5.2.8",
     "@fontsource/outfit": "^5.2.8",
-    "@fontsource/sora": "^5.2.8",
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.2",

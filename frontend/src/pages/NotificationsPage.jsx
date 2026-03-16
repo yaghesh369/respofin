@@ -37,6 +37,7 @@ const QUERY_KEYS_TO_REFRESH = [
   ['analytics'],
   ['recommendations'],
 ]
+const EMPTY_NOTIFICATIONS = []
 
 function isProviderLimitError(errorMessage) {
   const value = String(errorMessage || '').toLowerCase()
@@ -96,8 +97,8 @@ export default function NotificationsPage() {
     return map
   }, [recommendationsQuery.data])
 
-  const drafts = draftsQuery.data || []
-  const sentItems = sentQuery.data || []
+  const drafts = draftsQuery.data ?? EMPTY_NOTIFICATIONS
+  const sentItems = sentQuery.data ?? EMPTY_NOTIFICATIONS
 
   const filteredDrafts = useMemo(() => {
     const query = draftSearch.trim().toLowerCase()
