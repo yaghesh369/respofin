@@ -1,13 +1,21 @@
 import axios from 'axios'
 import { clearStoredSession, getStoredSession, setStoredSession } from '../lib/storage.js'
 
+function resolveApiBaseUrl() {
+  const raw = (import.meta.env.VITE_API_BASE_URL || '/api/').trim()
+  const normalized = raw.endsWith('/') ? raw : `${raw}/`
+  return normalized
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
+
 const api = axios.create({
-  baseURL: '/api/',
+  baseURL: API_BASE_URL,
   timeout: 20000,
 })
 
 const refreshClient = axios.create({
-  baseURL: '/api/',
+  baseURL: API_BASE_URL,
   timeout: 20000,
 })
 

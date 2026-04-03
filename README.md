@@ -23,6 +23,7 @@ This README is designed so a new contributor can clone the repo and run the full
 - Development Commands
 - Troubleshooting
 - Security and Production Notes
+- Deployment (Vercel + Render)
 - Contributing
 
 ## Overview
@@ -220,6 +221,57 @@ Backend variables used by code:
 | NOTIFICATION_PARALLEL_THRESHOLD | No | Batch size threshold for parallel sending (default: 30) |
 
 Frontend currently does not require a .env for local development because Vite proxy handles API routing.
+
+For production frontend deployment, set:
+
+| Variable | Required | Description |
+|---|---|---|
+| VITE_API_BASE_URL | Yes | Backend API base URL, e.g. https://respofin-backend.onrender.com/api/ |
+
+## Deployment (Vercel + Render)
+
+### Backend on Render
+
+This repo includes a Render blueprint file at:
+- render.yaml
+
+Steps:
+1. Push your repo to GitHub.
+2. In Render, choose New + Blueprint and select this repository.
+3. Render reads render.yaml and creates the `respofin-backend` service.
+4. Update env values in Render dashboard:
+	- DATABASE_URL
+	- EMAIL_HOST
+	- EMAIL_HOST_USER
+	- EMAIL_HOST_PASSWORD
+	- CORS_ALLOWED_ORIGINS (set to your Vercel URL)
+	- CSRF_TRUSTED_ORIGINS (set to your Vercel URL)
+5. Deploy and verify backend is reachable at:
+	- https://<your-render-service>.onrender.com/api/
+
+### Frontend on Vercel
+
+Frontend includes SPA rewrite config at:
+- frontend/vercel.json
+
+Steps:
+1. In Vercel, import this repository.
+2. Set project root to:
+	- frontend
+3. Build settings:
+	- Build Command: npm run build
+	- Output Directory: dist
+4. Add environment variable in Vercel:
+	- VITE_API_BASE_URL=https://<your-render-service>.onrender.com/api/
+5. Deploy and verify frontend login + API requests.
+
+### Final cross-origin checklist
+
+After both deployments:
+1. In Render backend env, set ALLOWED_HOSTS to include render host.
+2. In Render backend env, set CORS_ALLOWED_ORIGINS to your Vercel URL.
+3. In Render backend env, set CSRF_TRUSTED_ORIGINS to your Vercel URL.
+4. Keep CORS_ALLOW_ALL_ORIGINS=False in production.
 
 ## End-to-End Usage Flow
 
