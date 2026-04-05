@@ -224,8 +224,9 @@ export default function NotificationsPage() {
       const hasFailures = (result.failed || 0) > 0
       const hasSkipped = (result.skipped || 0) > 0
       const providerLimitReached = result.stopReason === 'provider_sending_limit'
+      const failureDetails = result.stopMessage ? ` Reason: ${String(result.stopMessage).slice(0, 180)}` : ''
       notify({
-        message: `Processed ${result.total} of ${result.requested} drafts. Sent ${result.sent}.${hasFailures ? ` Failed ${result.failed}.` : ''}${hasSkipped ? ` Skipped ${result.skipped}.` : ''}${providerLimitReached ? ' Mail provider daily sending limit reached. Try again after the provider reset window.' : result.stoppedEarly ? ' Sending stopped early due repeated failures/timeouts. You can run it again.' : ''}`,
+        message: `Processed ${result.total} of ${result.requested} drafts. Sent ${result.sent}.${hasFailures ? ` Failed ${result.failed}.` : ''}${hasSkipped ? ` Skipped ${result.skipped}.` : ''}${providerLimitReached ? ' Mail provider daily sending limit reached. Try again after the provider reset window.' : result.stoppedEarly ? ' Sending stopped early due repeated failures/timeouts. You can run it again.' : ''}${hasFailures ? failureDetails : ''}`,
         severity: hasFailures || hasSkipped ? 'warning' : 'success',
       })
       setSelectedIds([])
@@ -246,8 +247,9 @@ export default function NotificationsPage() {
       const hasFailures = (result.failed || 0) > 0
       const hasSkipped = (result.skipped || 0) > 0
       const providerLimitReached = result.stopReason === 'provider_sending_limit'
+      const failureDetails = result.stopMessage ? ` Reason: ${String(result.stopMessage).slice(0, 180)}` : ''
       notify({
-        message: `Processed ${result.total} of ${result.requested} selected drafts. Sent ${result.sent}.${hasFailures ? ` Failed ${result.failed}.` : ''}${hasSkipped ? ` Skipped ${result.skipped}.` : ''}${providerLimitReached ? ' Mail provider daily sending limit reached.' : result.stoppedEarly ? ' Sending stopped early due repeated failures/timeouts.' : ''}`,
+        message: `Processed ${result.total} of ${result.requested} selected drafts. Sent ${result.sent}.${hasFailures ? ` Failed ${result.failed}.` : ''}${hasSkipped ? ` Skipped ${result.skipped}.` : ''}${providerLimitReached ? ' Mail provider daily sending limit reached.' : result.stoppedEarly ? ' Sending stopped early due repeated failures/timeouts.' : ''}${hasFailures ? failureDetails : ''}`,
         severity: hasFailures || hasSkipped ? 'warning' : 'success',
       })
       setSelectedIds([])
@@ -264,8 +266,13 @@ export default function NotificationsPage() {
 
   const sendOneMutation = useMutation({
     mutationFn: sendDraftNotification,
-    onSuccess: async () => {
-      notify({ message: 'Notification sent.', severity: 'success' })
+    onSuccess: async (result) => {
+      if (result?.status === 'sent') {
+        notify({ message: 'Notification sent.', severity: 'success' })
+      } else {
+        const failureDetails = result?.error_message ? ` Reason: ${String(result.error_message).slice(0, 180)}` : ''
+        notify({ message: `Notification failed to send.${failureDetails}`, severity: 'warning' })
+      }
       await refreshNotificationSurfaces()
     },
     onError: (error) => {

@@ -134,7 +134,9 @@ class SendNotificationView(APIView):
         send_notification(notification, request.user)
 
         return Response({
-            "status": notification.status
+            "status": notification.status,
+            "sent_at": notification.sent_at,
+            "error_message": notification.error_message,
         })
 class SendAllDraftsView(APIView):
     permission_classes = [IsAuthenticated]
